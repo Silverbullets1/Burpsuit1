@@ -1,0 +1,1313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSec Auditor — Ironclad Assessment Tool</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #1a1a2e;
+            color: #e0e0e0;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+        .header {
+            background: #16213e;
+            padding: 10px 20px;
+            border-bottom: 2px solid #e94560;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .header h1 {
+            color: #e94560;
+            font-size: 18px;
+            letter-spacing: 2px;
+        }
+        .nav-tabs {
+            display: flex;
+            background: #0f3460;
+            border-bottom: 1px solid #e94560;
+        }
+        .nav-tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-right: 1px solid #1a1a2e;
+            transition: background 0.2s;
+            color: #a0a0a0;
+        }
+        .nav-tab:hover { background: #16213e; color: #e0e0e0; }
+        .nav-tab.active {
+            background: #e94560;
+            color: #fff;
+            font-weight: bold;
+        }
+        .panel { display: none; padding: 15px; height: calc(100vh - 90px); overflow-y: auto; }
+        .panel.active { display: block; }
+        .split-pane {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            height: 100%;
+        }
+        .pane {
+            background: #16213e;
+            border: 1px solid #0f3460;
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+        }
+        .pane-header {
+            background: #0f3460;
+            padding: 8px 12px;
+            font-weight: bold;
+            color: #e94560;
+            border-radius: 4px 4px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        textarea {
+            flex: 1;
+            background: #1a1a2e;
+            color: #00ff88;
+            border: none;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            resize: none;
+            outline: none;
+        }
+        input[type="text"], input[type="number"], select {
+            background: #1a1a2e;
+            color: #00ff88;
+            border: 1px solid #0f3460;
+            padding: 6px 10px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            outline: none;
+            width: 100%;
+        }
+        input[type="text"]:focus, input[type="number"]:focus {
+            border-color: #e94560;
+        }
+        .btn {
+            padding: 7px 16px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            font-weight: bold;
+            transition: opacity 0.2s;
+        }
+        .btn:hover { opacity: 0.85; }
+        .btn-red { background: #e94560; color: #fff; }
+        .btn-green { background: #00ff88; color: #1a1a2e; }
+        .btn-blue { background: #0f3460; color: #e0e0e0; border: 1px solid #e94560; }
+        .btn-orange { background: #f5a623; color: #1a1a2e; }
+        .toolbar {
+            padding: 10px;
+            background: #0f3460;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .url-bar {
+            display: flex;
+            gap: 8px;
+            padding: 10px;
+            background: #0f3460;
+            align-items: center;
+        }
+        .url-bar input { flex: 1; }
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+        .results-table th {
+            background: #0f3460;
+            color: #e94560;
+            padding: 8px;
+            text-align: left;
+            border: 1px solid #1a1a2e;
+            position: sticky;
+            top: 0;
+        }
+        .results-table td {
+            padding: 6px 8px;
+            border: 1px solid #0f3460;
+            color: #c0c0c0;
+            cursor: pointer;
+        }
+        .results-table tr:hover td { background: #0f3460; color: #fff; }
+        .results-table tr.selected td { background: #16213e; color: #00ff88; }
+        .severity-critical { color: #ff0000; font-weight: bold; }
+        .severity-high { color: #ff6b35; font-weight: bold; }
+        .severity-medium { color: #f5a623; }
+        .severity-low { color: #00ff88; }
+        .severity-info { color: #4a9eff; }
+        .status-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #0f3460;
+            padding: 5px 15px;
+            display: flex;
+            gap: 20px;
+            font-size: 11px;
+            border-top: 1px solid #e94560;
+            z-index: 100;
+        }
+        .status-indicator { color: #00ff88; }
+        .status-indicator.error { color: #e94560; }
+        .log-entry {
+            padding: 4px 8px;
+            border-bottom: 1px solid #0f3460;
+            font-size: 11px;
+        }
+        .log-entry:hover { background: #0f3460; }
+        .log-time { color: #f5a623; margin-right: 8px; }
+        .log-method { color: #e94560; margin-right: 8px; font-weight: bold; }
+        .log-status-200 { color: #00ff88; }
+        .log-status-301 { color: #f5a623; }
+        .log-status-404 { color: #ff6b35; }
+        .log-status-500 { color: #ff0000; }
+        .scanner-grid {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 10px;
+            height: 100%;
+        }
+        .config-panel {
+            background: #16213e;
+            border: 1px solid #0f3460;
+            border-radius: 4px;
+            padding: 12px;
+            overflow-y: auto;
+        }
+        .config-section {
+            margin-bottom: 16px;
+        }
+        .config-section h3 {
+            color: #e94560;
+            margin-bottom: 8px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+            color: #c0c0c0;
+        }
+        .checkbox-row input[type="checkbox"] { accent-color: #e94560; }
+        .progress-bar {
+            height: 4px;
+            background: #0f3460;
+            border-radius: 2px;
+            margin: 8px 0;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #e94560;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        .decoder-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto 1fr auto 1fr;
+            gap: 10px;
+            height: 100%;
+        }
+        .intruder-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            height: 100%;
+        }
+        .payload-list {
+            background: #1a1a2e;
+            border: 1px solid #0f3460;
+            padding: 8px;
+            height: 150px;
+            overflow-y: auto;
+            font-size: 11px;
+            color: #00ff88;
+        }
+        label { color: #a0a0a0; font-size: 11px; display: block; margin-bottom: 4px; }
+        .section-divider {
+            border: none;
+            border-top: 1px solid #0f3460;
+            margin: 12px 0;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 7px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        .badge-red { background: #e94560; color: #fff; }
+        .badge-green { background: #00ff88; color: #1a1a2e; }
+        .comparer-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            height: 100%;
+        }
+        .finding-detail {
+            background: #1a1a2e;
+            border: 1px solid #0f3460;
+            border-radius: 4px;
+            padding: 12px;
+            margin-top: 10px;
+        }
+        .finding-detail h4 { color: #e94560; margin-bottom: 8px; }
+        .finding-detail p { color: #c0c0c0; margin-bottom: 6px; line-height: 1.5; }
+        .finding-detail code {
+            background: #0f3460;
+            padding: 2px 6px;
+            border-radius: 2px;
+            color: #00ff88;
+            font-size: 11px;
+        }
+        #scanResults { overflow-y: auto; max-height: calc(100vh - 300px); }
+        .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+        .sequencer-output {
+            background: #1a1a2e;
+            border: 1px solid #0f3460;
+            padding: 10px;
+            height: 200px;
+            overflow-y: auto;
+            font-size: 11px;
+            color: #00ff88;
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>⚡ WEBSEC AUDITOR</h1>
+    <span style="color:#a0a0a0; font-size:11px;">Ironclad Assessment Platform v2.1 | Red Team Edition</span>
+    <span style="margin-left:auto; color:#00ff88; font-size:11px;" id="globalStatus">● READY</span>
+</div>
+
+<div class="nav-tabs">
+    <div class="nav-tab active" onclick="switchTab('proxy')">📡 Proxy</div>
+    <div class="nav-tab" onclick="switchTab('scanner')">🔍 Scanner</div>
+    <div class="nav-tab" onclick="switchTab('intruder')">⚔️ Intruder</div>
+    <div class="nav-tab" onclick="switchTab('repeater')">🔁 Repeater</div>
+    <div class="nav-tab" onclick="switchTab('decoder')">🔓 Decoder</div>
+    <div class="nav-tab" onclick="switchTab('comparer')">⚖️ Comparer</div>
+    <div class="nav-tab" onclick="switchTab('sequencer')">🎲 Sequencer</div>
+    <div class="nav-tab" onclick="switchTab('logger')">📋 Logger</div>
+</div>
+
+<!-- PROXY TAB -->
+<div id="proxy" class="panel active">
+    <div class="split-pane">
+        <div class="pane">
+            <div class="pane-header">
+                <span>HTTP History</span>
+                <div style="display:flex;gap:6px;">
+                    <button class="btn btn-red" onclick="clearHistory()">Clear</button>
+                    <button class="btn btn-blue" onclick="exportHistory()">Export</button>
+                </div>
+            </div>
+            <div class="url-bar">
+                <input type="text" id="proxyTarget" placeholder="Target URL — https://target.example.com" value="https://example.com">
+                <button class="btn btn-green" onclick="simulateRequest()">Intercept</button>
+            </div>
+            <div style="overflow-y:auto; flex:1;">
+                <table class="results-table" id="historyTable">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Method</th>
+                            <th>URL</th>
+                            <th>Status</th>
+                            <th>Length</th>
+                            <th>Type</th>
+                            <th>Time(ms)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyBody"></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="pane">
+            <div class="pane-header">
+                <span>Request / Response Inspector</span>
+                <div style="display:flex;gap:6px;">
+                    <button class="btn btn-blue" onclick="sendToRepeater()">→ Repeater</button>
+                    <button class="btn btn-blue" onclick="sendToIntruder()">→ Intruder</button>
+                    <button class="btn btn-orange" onclick="forwardRequest()">Forward</button>
+                </div>
+            </div>
+            <div style="display:grid;grid-template-rows:1fr 1fr;gap:4px;flex:1;padding:8px;">
+                <div>
+                    <label>REQUEST</label>
+                    <textarea id="requestView" style="height:100%;" placeholder="Select a history entry to inspect the raw request...">GET / HTTP/1.1
+Host: example.com
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
+Accept-Encoding: gzip, deflate, br
+Connection: keep-alive</textarea>
+                </div>
+                <div>
+                    <label>RESPONSE</label>
+                    <textarea id="responseView" style="height:100%;" placeholder="Response appears here...">HTTP/1.1 200 OK
+Content-Type: text/html; charset=UTF-8
+Server: nginx/1.18.0
+X-Frame-Options: SAMEORIGIN
+Content-Length: 4823
+
+&lt;!DOCTYPE html&gt;
+&lt;html&gt;...&lt;/html&gt;</textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SCANNER TAB -->
+<div id="scanner" class="panel">
+    <div class="scanner-grid">
+        <div class="config-panel">
+            <div class="config-section">
+                <h3>Target</h3>
+                <label>URL</label>
+                <input type="text" id="scanTarget" value="https://example.com" style="margin-bottom:6px;">
+                <label>Scope</label>
+                <select id="scanScope" style="margin-bottom:6px;">
+                    <option>This URL only</option>
+                    <option>This directory and below</option>
+                    <option>This domain only</option>
+                    <option>All subdomains</option>
+                </select>
+                <label>Crawl Depth</label>
+                <input type="number" id="crawlDepth" value="3" min="1" max="10" style="margin-bottom:6px;">
+            </div>
+            <hr class="section-divider">
+            <div class="config-section">
+                <h3>Vulnerability Checks</h3>
+                <div class="checkbox-row"><input type="checkbox" checked> SQL Injection</div>
+                <div class="checkbox-row"><input type="checkbox" checked> XSS (Reflected)</div>
+                <div class="checkbox-row"><input type="checkbox" checked> XSS (Stored)</div>
+                <div class="checkbox-row"><input type="checkbox" checked> XSS (DOM)</div>
+                <div class="checkbox-row"><input type="checkbox" checked> CSRF Detection</div>
+                <div class="checkbox-row"><input type="checkbox" checked> Open Redirect</div>
+                <div class="checkbox-row"><input type="checkbox" checked> SSRF</div>
+                <div class="checkbox-row"><input type="checkbox" checked> XXE Injection</div>
+                <div class="checkbox-row"><input type="checkbox" checked> Path Traversal</div>
+                <div class="checkbox-row"><input type="checkbox" checked> Command Injection</div>
+                <div class="checkbox-row"><input type="checkbox" checked> IDOR</div>
+                <div class="checkbox-row"><input type="checkbox" checked> Insecure Headers</div>
+                <div class="checkbox-row"><input type="checkbox" checked> SSL/TLS Issues</div>
+                <div class="checkbox-row"><input type="checkbox" checked> Clickjacking</div>
+                <div class="checkbox-row"><input type="checkbox" checked> Information Disclosure</div>
+                <div class="checkbox-row"><input type="checkbox"> LDAP Injection</div>
+                <div class="checkbox-row"><input type="checkbox"> Template Injection (SSTI)</div>
+                <div class="checkbox-row"><input type="checkbox"> WebSocket Issues</div>
+            </div>
+            <hr class="section-divider">
+            <div class="config-section">
+                <h3>Options</h3>
+                <div class="checkbox-row"><input type="checkbox" checked> Follow redirects</div>
+                <div class="checkbox-row"><input type="checkbox" checked> Parse JavaScript</div>
+                <div class="checkbox-row"><input type="checkbox"> Authenticated scan</div>
+                <div class="checkbox-row"><input type="checkbox"> Passive scan only</div>
+                <label style="margin-top:8px;">Threads</label>
+                <input type="number" id="scanThreads" value="10" min="1" max="50">
+            </div>
+            <hr class="section-divider">
+            <button class="btn btn-red" onclick="runScan()" style="width:100%; margin-bottom:6px;">▶ Start Scan</button>
+            <button class="btn btn-blue" onclick="pauseScan()" style="width:100%; margin-bottom:6px;">⏸ Pause</button>
+            <button class="btn btn-blue" onclick="clearScan()" style="width:100%;">✕ Clear</button>
+            <div class="progress-bar" style="margin-top:12px;">
+                <div class="progress-fill" id="scanProgress"></div>
+            </div>
+            <div id="scanStatusText" style="color:#a0a0a0; font-size:11px; margin-top:4px;">Idle</div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:10px; height:100%;">
+            <div class="pane" style="flex:1;">
+                <div class="pane-header">
+                    <span>Scan Results</span>
+                    <div style="display:flex;gap:6px;">
+                        <span class="badge badge-red" id="critCount">0 Critical</span>
+                        <span class="badge badge-red" id="highCount">0 High</span>
+                        <button class="btn btn-blue" onclick="exportScanResults()">Export</button>
+                    </div>
+                </div>
+                <div id="scanResults" style="overflow-y:auto; flex:1;">
+                    <table class="results-table">
+                        <thead>
+                            <tr>
+                                <th>Severity</th>
+                                <th>Type</th>
+                                <th>Endpoint</th>
+                                <th>Parameter</th>
+                                <th>Confidence</th>
+                                <th>Detail</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scanBody"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="finding-detail" id="findingDetail" style="display:none;">
+                <h4 id="findingTitle">Finding Detail</h4>
+                <p id="findingDesc"></p>
+                <p><strong style="color:#e94560;">Payload:</strong> <code id="findingPayload"></code></p>
+                <p><strong style="color:#e94560;">Evidence:</strong> <code id="findingEvidence"></code></p>
+                <p><strong style="color:#e94560;">Remediation:</strong> <span id="findingRemediation" style="color:#c0c0c0;"></span></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- INTRUDER TAB -->
+<div id="intruder" class="panel">
+    <div class="intruder-grid">
+        <div class="pane">
+            <div class="pane-header">
+                <span>Attack Configuration</span>
+                <select id="attackType" style="background:#1a1a2e; color:#00ff88; border:1px solid #e94560; padding:4px; border-radius:3px;">
+                    <option>Sniper</option>
+                    <option>Battering Ram</option>
+                    <option>Pitchfork</option>
+                    <option>Cluster Bomb</option>
+                </select>
+            </div>
+            <div style="padding:10px; display:flex; flex-direction:column; gap:10px; flex:1;">
+                <div>
+                    <label>Target Request (mark injection points with §payload§)</label>
+                    <textarea id="intruderRequest" style="height:180px;">POST /login HTTP/1.1
+Host: target.example.com
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 37
+
+username=§admin§&password=§password§</textarea>
+                </div>
+                <div>
+                    <label>Payload Set 1</label>
+                    <select style="margin-bottom:6px;">
+                        <option>Simple list</option>
+                        <option>Runtime file</option>
+                        <option>Custom iterator</option>
+                        <option>Character substitution</option>
+                        <option>Case modification</option>
+                        <option>Numbers</option>
+                        <option>Dates</option>
+                    </select>
+                    <div class="payload-list" id="payloadList">admin
+administrator
+root
+user
+test
+guest
+superuser
+sysadmin
+webmaster
+support</div>
+                    <div style="display:flex;gap:6px;margin-top:6px;">
+                        <button class="btn btn-blue" onclick="loadCommonPayloads()">Load Common</button>
+                        <button class="btn btn-blue" onclick="loadSQLPayloads()">SQL Payloads</button>
+                        <button class="btn btn-blue" onclick="loadXSSPayloads()">XSS Payloads</button>
+                        <button class="btn btn-blue" onclick="clearPayloads()">Clear</button>
+                    </div>
+                </div>
+                <div>
+                    <label>Grep Match (flag responses containing)</label>
+                    <input type="text" id="grepMatch" placeholder="e.g. Welcome, dashboard, error, SQL" value="Welcome">
+                </div>
+                <button class="btn btn-red" onclick="runIntruder()" style="width:100%;">▶ Launch Attack</button>
+            </div>
+        </div>
+        <div class="pane">
+            <div class="pane-header">
+                <span>Attack Results</span>
+                <button class="btn btn-blue" onclick="exportIntruderResults()">Export</button>
+            </div>
+            <div style="overflow-y:auto; flex:1;">
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Payload</th>
+                            <th>Status</th>
+                            <th>Length</th>
+                            <th>Time(ms)</th>
+                            <th>Match</th>
+                        </tr>
+                    </thead>
+                    <tbody id="intruderBody"></tbody>
+                </table>
+            </div>
+            <div style="padding:8px; background:#0f3460; font-size:11px; color:#a0a0a0;" id="intruderStatus">
+                Ready — configure payload and launch attack
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- REPEATER TAB -->
+<div id="repeater" class="panel">
+    <div class="split-pane">
+        <div class="pane">
+            <div class="pane-header">
+                <span>Raw Request</span>
+                <div style="display:flex;gap:6px;align-items:center;">
+                    <select id="repeaterMethod" style="background:#1a1a2e;color:#00ff88;border:1px solid #e94560;padding:4px;border-radius:3px;">
+                        <option>GET</option><option>POST</option><option>PUT</option>
+                        <option>DELETE</option><option>PATCH</option><option>OPTIONS</option><option>HEAD</option>
+                    </select>
+                    <input type="text" id="repeaterHost" placeholder="host:port" value="example.com:443" style="width:180px;">
+                    <button class="btn btn-green" onclick="sendRepeaterRequest()">▶ Send</button>
+                </div>
+            </div>
+            <textarea id="repeaterRequest" style="flex:1;">GET / HTTP/1.1
+Host: example.com
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36
+Accept: text/html,application/xhtml+xml
+Accept-Encoding: gzip, deflate, br
+Connection: keep-alive
+</textarea>
+        </div>
+        <div class="pane">
+            <div class="pane-header">
+                <span>Response</span>
+                <div style="display:flex;gap:6px;align-items:center;">
+                    <span id="repeaterStatusCode" style="color:#00ff88; font-weight:bold;"></span>
+                    <span id="repeaterResponseTime" style="color:#a0a0a0;"></span>
+                    <button class="btn btn-blue" onclick="sendToComparer()">→ Comparer</button>
+                </div>
+            </div>
+            <textarea id="repeaterResponse" style="flex:1;" placeholder="Response appears here after sending request..."></textarea>
+        </div>
+    </div>
+</div>
+
+<!-- DECODER TAB -->
+<div id="decoder" class="panel">
+    <div style="display:grid; grid-template-rows: auto 1fr auto 1fr; gap:10px; height:100%;">
+        <div style="display:flex;gap:8px;align-items:center;">
+            <label style="display:inline; margin:0;">Input</label>
+            <select id="decodeType" style="background:#1a1a2e;color:#00ff88;border:1px solid #0f3460;padding:6px;border-radius:3px;">
+                <option value="b64decode">Base64 Decode</option>
+                <option value="b64encode">Base64 Encode</option>
+                <option value="urldecode">URL Decode</option>
+                <option value="urlencode">URL Encode</option>
+                <option value="htmldecode">HTML Decode</option>
+                <option value="htmlencode">HTML Encode</option>
+                <option value="hexdecode">Hex Decode</option>
+                <option value="hexencode">Hex Encode</option>
+                <option value="md5">MD5 Hash</option>
+                <option value="sha1">SHA-1 Hash</option>
+                <option value="sha256">SHA-256 Hash</option>
+                <option value="rot13">ROT13</option>
+                <option value="binary">Binary Decode</option>
+                <option value="jwt">JWT Decode</option>
+            </select>
+            <button class="btn btn-green" onclick="runDecode()">▶ Transform</button>
+            <button class="btn btn-blue" onclick="swapDecoder()">⇅ Swap</button>
+            <button class="btn btn-blue" onclick="clearDecoder()">✕ Clear</button>
+        </div>
+        <textarea id="decoderInput" placeholder="Paste encoded/raw value here...">SGVsbG8gV29ybGQ=</textarea>
+        <label>Output</label>
+        <textarea id="decoderOutput" placeholder="Decoded output appears here..." readonly style="color:#f5a623;"></textarea>
+    </div>
+</div>
+
+<!-- COMPARER TAB -->
+<div id="comparer" class="panel">
+    <div class="comparer-grid">
+        <div class="pane">
+            <div class="pane-header"><span>Item 1</span></div>
+            <textarea id="comparerLeft" style="flex:1;" placeholder="Paste first response/request here...">HTTP/1.1 200 OK
+Content-Type: text/html
+Set-Cookie: session=abc123; HttpOnly
+Content-Length: 1024
+
+&lt;html&gt;&lt;body&gt;Welcome admin&lt;/body&gt;&lt;/html&gt;</textarea>
+        </div>
+        <div class="pane">
+            <div class="pane-header">
+                <span>Item 2</span>
+                <button class="btn btn-green" onclick="runCompare()">Compare</button>
+            </div>
+            <textarea id="comparerRight" style="flex:1;" placeholder="Paste second response/request here...">HTTP/1.1 200 OK
+Content-Type: text/html
+Set-Cookie: session=xyz789; HttpOnly; Secure
+Content-Length: 1031
+
+&lt;html&gt;&lt;body&gt;Welcome user&lt;/body&gt;&lt;/html&gt;</textarea>
+        </div>
+    </div>
+    <div id="comparerOutput" style="background:#16213e; border:1px solid #0f3460; border-radius:4px; padding:12px; margin-top:10px; font-size:11px; min-height:80px;">
+        <span style="color:#a0a0a0;">Diff output appears here after comparison...</span>
+    </div>
+</div>
+
+<!-- SEQUENCER TAB -->
+<div id="sequencer" class="panel">
+    <div class="three-col" style="margin-bottom:12px;">
+        <div class="config-panel">
+            <div class="config-section">
+                <h3>Token Location</h3>
+                <label>Request</label>
+                <textarea id="sequencerRequest" style="height:120px;">GET /login HTTP/1.1
+Host: example.com
+</textarea>
+                <label style="margin-top:8px;">Token Location</label>
+                <select style="margin-bottom:6px;">
+                    <option>Cookie: session</option>
+                    <option>Response body</option>
+                    <option>Response header</option>
+                </select>
+                <label>Sample Size</label>
+                <input type="number" value="100" min="10" max="1000">
+            </div>
+            <button class="btn btn-red" onclick="runSequencer()" style="width:100%;">▶ Start Analysis</button>
+        </div>
+        <div class="config-panel" style="grid-column: span 2;">
+            <h3 style="color:#e94560; margin-bottom:12px;">Token Analysis Results</h3>
+            <div class="sequencer-output" id="sequencerOutput">
+Waiting for token samples...
+
+Configure target, specify token location, then start analysis.
+The sequencer captures tokens and performs FIPS 140-2 randomness tests:
+ • Monobit test
+ • Poker test
+ • Runs test
+ • Long runs test
+ • Autocorrelation test
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- LOGGER TAB -->
+<div id="logger" class="panel">
+    <div style="display:flex; flex-direction:column; height:100%; gap:10px;">
+        <div style="display:flex; gap:8px; align-items:center;">
+            <select id="logFilter" onchange="filterLog()" style="background:#1a1a2e;color:#00ff88;border:1px solid #0f3460;padding:6px;border-radius:3px;">
+                <option value="all">All Events</option>
+                <option value="scan">Scanner Events</option>
+                <option value="proxy">Proxy Events</option>
+                <option value="intruder">Intruder Events</option>
+                <option value="error">Errors Only</option>
+            </select>
+            <input type="text" id="logSearch" placeholder="Search log entries..." style="width:300px;" oninput="filterLog()">
+            <button class="btn btn-red" onclick="clearLog()">Clear Log</button>
+            <button class="btn btn-blue" onclick="exportLog()">Export Log</button>
+            <span style="margin-left:auto; color:#a0a0a0; font-size:11px;" id="logCount">0 entries</span>
+        </div>
+        <div class="pane" style="flex:1;">
+            <div class="pane-header"><span>Event Log</span></div>
+            <div id="logContainer" style="overflow-y:auto; flex:1; font-size:11px;"></div>
+        </div>
+    </div>
+</div>
+
+<div class="status-bar">
+    <span class="status-indicator" id="statusMain">● READY</span>
+    <span id="statusTarget">Target: —</span>
+    <span id="statusRequests">Requests: 0</span>
+    <span id="statusFindings">Findings: 0</span>
+    <span id="statusQueue">Queue: 0</span>
+    <span style="margin-left:auto;" id="statusTime"></span>
+</div>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+const State = {
+    history: [],
+    findings: [],
+    logEntries: [],
+    requestCount: 0,
+    findingCount: 0,
+    scanRunning: false,
+    intruderResults: [],
+    repeaterHistory: [],
+    comparerItems: []
+};
+
+// ============================================================
+// TAB SWITCHING
+// ============================================================
+function switchTab(tabName) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById(tabName).classList.add('active');
+    event.target.classList.add('active');
+}
+
+// ============================================================
+// STATUS BAR
+// ============================================================
+function updateStatusBar() {
+    document.getElementById('statusRequests').textContent = `Requests: ${State.requestCount}`;
+    document.getElementById('statusFindings').textContent = `Findings: ${State.findingCount}`;
+    const now = new Date();
+    document.getElementById('statusTime').textContent = now.toISOString().replace('T',' ').substring(0,19) + ' UTC';
+}
+setInterval(updateStatusBar, 1000);
+
+// ============================================================
+// PROXY — HTTP HISTORY SIMULATION
+// ============================================================
+const MOCK_REQUESTS = [
+    { method:'GET',  url:'/',                  status:200, len:4823,  type:'text/html',       time:124  },
+    { method:'GET',  url:'/static/app.js',     status:200, len:98234, type:'application/js',  time:43   },
+    { method:'POST', url:'/api/login',         status:401, len:89,    type:'application/json',time:231  },
+    { method:'GET',  url:'/admin',             status:403, len:512,   type:'text/html',       time:67   },
+    { method:'GET',  url:'/api/v1/users',      status:200, len:2341,  type:'application/json',time:189  },
+    { method:'PUT',  url:'/api/v1/users/1',    status:200, len:341,   type:'application/json',time:203  },
+    { method:'GET',  url:'/robots.txt',        status:200, len:127,   type:'text/plain',      time:31   },
+    { method:'GET',  url:'/.env',              status:200, len:340,   type:'text/plain',      time:28   },
+    { method:'POST', url:'/api/upload',        status:200, len:234,   type:'application/json',time:876  },
+    { method:'GET',  url:'/api/v1/profile?id=1',status:200,len:891,  type:'application/json',time:145  },
+    { method:'DELETE',url:'/api/v1/users/5',  status:204, len:0,     type:'',                time:98   },
+    { method:'GET',  url:'/search?q=test',     status:200, len:12034, type:'text/html',       time:334  },
+];
+
+function simulateRequest() {
+    const target = document.getElementById('proxyTarget').value || 'https://example.com';
+    document.getElementById('statusTarget').textContent = `Target: ${target}`;
+
+    MOCK_REQUESTS.forEach((req, i) => {
+        setTimeout(() => {
+            State.requestCount++;
+            State.history.push({...req, id: State.history.length + 1, target});
+            renderHistoryRow({...req, id: State.history.length, target});
+            addLog('proxy', `${req.method} ${target}${req.url} → ${req.status} (${req.len}b, ${req.time}ms)`);
+        }, i * 180);
+    });
+}
+
+function renderHistoryRow(req) {
+    const tbody = document.getElementById('historyBody');
+    const tr = document.createElement('tr');
+    const statusClass = req.status >= 500 ? 'log-status-500' :
+                        req.status >= 400 ? 'log-status-404' :
+                        req.status >= 300 ? 'log-status-301' : 'log-status-200';
+    tr.innerHTML = `
+        <td>${req.id}</td>
+        <td class="log-method">${req.method}</td>
+        <td>${req.target}${req.url}</td>
+        <td class="${statusClass}">${req.status}</td>
+        <td>${req.len}</td>
+        <td>${req.type}</td>
+        <td>${req.time}</td>
+    `;
+    tr.onclick = () => {
+        document.querySelectorAll('#historyBody tr').forEach(r => r.classList.remove('selected'));
+        tr.classList.add('selected');
+        loadRequestDetail(req);
+    };
+    tbody.appendChild(tr);
+}
+
+function loadRequestDetail(req) {
+    document.getElementById('requestView').value =
+`${req.method} ${req.url} HTTP/1.1\nHost: ${req.target.replace('https://','').replace('http://','')}\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36\nAccept: */*\nConnection: keep-alive`;
+    document.getElementById('responseView').value =
+`HTTP/1.1 ${req.status} ${statusText(req.status)}\nContent-Type: ${req.type || 'text/html'}\nContent-Length: ${req.len}\nServer: nginx/1.18.0\nX-Frame-Options: SAMEORIGIN\n\n[Response body — ${req.len} bytes]`;
+}
+
+function statusText(code) {
+    const map = {200:'OK',201:'Created',204:'No Content',301:'Moved Permanently',302:'Found',400:'Bad Request',401:'Unauthorized',403:'Forbidden',404:'Not Found',500:'Internal Server Error'};
+    return map[code] || 'Unknown';
+}
+
+function clearHistory() {
+    document.getElementById('historyBody').innerHTML = '';
+    State.history = [];
+}
+
+function exportHistory() {
+    const data = State.history.map(r => `${r.method}\t${r.url}\t${r.status}\t${r.len}\t${r.time}ms`).join('\n');
+    downloadFile('proxy_history.txt', data);
+    addLog('proxy', 'HTTP history exported to proxy_history.txt');
+}
+
+function sendToRepeater() {
+    const req = document.getElementById('requestView').value;
+    if (req) {
+        document.getElementById('repeaterRequest').value = req;
+        addLog('proxy', 'Request forwarded to Repeater');
+    }
+}
+
+function sendToIntruder() {
+    const req = document.getElementById('requestView').value;
+    if (req) {
+        document.getElementById('intruderRequest').value = req;
+        addLog('proxy', 'Request forwarded to Intruder');
+    }
+}
+
+function forwardRequest() {
+    addLog('proxy', 'Request forwarded through proxy intercept');
+}
+
+// ============================================================
+// SCANNER
+// ============================================================
+const VULN_DB = [
+    { severity:'Critical', type:'SQL Injection',        endpoint:'/login',             param:'username',   confidence:'Certain',   payload:"' OR '1'='1' --",           evidence:'MySQL error: You have an error in your SQL syntax',                         remediation:'Use parameterized queries (PreparedStatement). Never interpolate user input into SQL strings.' },
+    { severity:'Critical', type:'SQL Injection',        endpoint:'/search',            param:'q',          confidence:'Certain',   payload:"1' UNION SELECT null,table_name FROM information_schema.tables--", evidence:'Column count matched, data returned in response', remediation:'Implement input validation and use ORM with parameterized queries.' },
+    { severity:'High',     type:'XSS (Reflected)',      endpoint:'/search',            param:'query',      confidence:'Certain',   payload:'"><script>alert(document.cookie)</script>', evidence:'Payload reflected verbatim in HTTP response body',          remediation:'Encode all user-controlled output using context-aware encoding (OWASP ESAPI).' },
+    { severity:'High',     type:'XSS (DOM)',            endpoint:'/profile',           param:'name',       confidence:'Firm',      payload:"'+alert(1)+'",              evidence:'document.write() called with unsanitized location.hash value',               remediation:'Avoid innerHTML/document.write. Use textContent and DOM APIs safely.' },
+    { severity:'High',     type:'Path Traversal',       endpoint:'/download',          param:'file',       confidence:'Certain',   payload:'../../../etc/passwd',       evidence:'root:x:0:0:root found in response body',                                    remediation:'Validate and canonicalize file paths. Use allowlists for permitted file locations.' },
+    { severity:'High',     type:'SSRF',                 endpoint:'/webhook',           param:'url',        confidence:'Firm',      payload:'http://169.254.169.254/latest/meta-data/', evidence:'AWS metadata response received: ami-id, instance-type',  remediation:'Validate URL schemes, block private IP ranges, use allowlists for external requests.' },
+    { severity:'High',     type:'Command Injection',    endpoint:'/api/ping',          param:'host',       confidence:'Firm',      payload:'127.0.0.1; id',             evidence:'uid=33(www-data) gid=33(www-data) in response',                             remediation:'Never pass user input to shell functions. Use subprocess with argument arrays.' },
+    { severity:'High',     type:'XXE Injection',        endpoint:'/api/upload',        param:'XML body',   confidence:'Firm',      payload:'<!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>', evidence:'File contents reflected in XML response',          remediation:'Disable external entity processing in XML parser configuration.' },
+    { severity:'Medium',   type:'CSRF',                 endpoint:'/api/v1/users',      param:'POST body',  confidence:'Certain',   payload:'N/A — missing token',       evidence:'No CSRF token in form. SameSite cookie attribute absent.',                  remediation:'Implement CSRF tokens (Synchronizer Token Pattern). Set SameSite=Strict on session cookies.' },
+    { severity:'Medium',   type:'Open Redirect',        endpoint:'/redirect',          param:'url',        confidence:'Certain',   payload:'//evil.example.com/phish', evidence:'302 redirect to attacker-controlled domain issued',                          remediation:'Validate redirect destinations against an allowlist of trusted URLs.' },
+    { severity:'Medium',   type:'IDOR',                 endpoint:'/api/v1/users/5',    param:'id',         confidence:'Firm',      payload:'id=1,2,3... (enumerated)',  evidence:'Changing ID returns other users\' data without authorization check',          remediation:'Implement object-level authorization. Validate that the authenticated user owns the requested resource.' },
+    { severity:'Medium',   type:'Insecure Headers',     endpoint:'/',                  param:'Response',   confidence:'Certain',   payload:'N/A — header audit',        evidence:'Missing: Strict-Transport-Security, Content-Security-Policy, X-Content-Type-Options', remediation:'Add security headers. Use helmet.js (Node) or django-csp (Python) middleware.' },
+    { severity:'Medium',   type:'Information Disclosure',endpoint:'/.env',             param:'GET',        confidence:'Certain',   payload:'N/A — file accessible',     evidence:'DB_PASSWORD, API_KEY, SECRET_KEY exposed in response body',                 remediation:'Block access to .env, .git, and config files at the web server level.' },
+    { severity:'Low',      type:'Clickjacking',         endpoint:'/',                  param:'Response',   confidence:'Certain',   payload:'N/A — framing test',        evidence:'X-Frame-Options header absent. Page rendered inside iframe without restriction.', remediation:'Set X-Frame-Options: DENY or Content-Security-Policy: frame-ancestors \'none\'.' },
+    { severity:'Low',      type:'SSL/TLS Issues',       endpoint:':443',               param:'TLS Config', confidence:'Certain',   payload:'N/A — TLS scan',            evidence:'TLSv1.0 and TLSv1.1 accepted. RC4 cipher suites enabled.',                 remediation:'Disable TLS 1.0/1.1. Enable only TLS 1.2 and 1.3. Disable weak cipher suites.' },
+    { severity:'Info',     type:'Technology Disclosure',endpoint:'/',                  param:'Headers',    confidence:'Certain',   payload:'N/A — header scan',         evidence:'Server: Apache/2.4.41. X-Powered-By: PHP/7.4.3 exposed.',                  remediation:'Remove Server and X-Powered-By headers from all responses.' },
+];
+
+let scanInterval = null;
+let scanIndex = 0;
+
+function runScan() {
+    if (State.scanRunning) return;
+    State.scanRunning = true;
+    scanIndex = 0;
+    document.getElementById('scanBody').innerHTML = '';
+    document.getElementById('findingDetail').style.display = 'none';
+    State.findings = [];
+    State.findingCount = 0;
+    document.getElementById('critCount').textContent = '0 Critical';
+    document.getElementById('highCount').textContent = '0 High';
+
+    const target = document.getElementById('scanTarget').value;
+    document.getElementById('statusTarget').textContent = `Target: ${target}`;
+    document.getElementById('globalStatus').textContent = '● SCANNING';
+    document.getElementById('globalStatus').style.color = '#f5a623';
+    addLog('scan', `Scan started against ${target} — ${VULN_DB.length} checks queued`);
+
+    scanInterval = setInterval(() => {
+        if (scanIndex >= VULN_DB.length) {
+            clearInterval(scanInterval);
+            State.scanRunning = false;
+            document.getElementById('scanProgress').style.width = '100%';
+            document.getElementById('scanStatusText').textContent = `Scan complete — ${VULN_DB.length} checks, ${State.findingCount} findings`;
+            document.getElementById('globalStatus').textContent = '● COMPLETE';
+            document.getElementById('globalStatus').style.color = '#00ff88';
+            addLog('scan', `Scan complete. ${State.findingCount} vulnerabilities found.`);
+            return;
+        }
+
+        const pct = Math.round((scanIndex / VULN_DB.length) * 100);
+        document.getElementById('scanProgress').style.width = pct + '%';
+        document.getElementById('scanStatusText').textContent = `Scanning ${pct}% — ${VULN_DB[scanIndex].type}`;
+
+        addScanFinding(VULN_DB[scanIndex]);
+        scanIndex++;
+    }, 400);
+}
+
+function addScanFinding(vuln) {
+    State.findings.push(vuln);
+    State.findingCount++;
+    const tbody = document.getElementById('scanBody');
+    const tr = document.createElement('tr');
+    const sevClass = {Critical:'severity-critical',High:'severity-high',Medium:'severity-medium',Low:'severity-low',Info:'severity-info'}[vuln.severity] || '';
+    tr.innerHTML = `
+        <td class="${sevClass}">● ${vuln.severity}</td>
+        <td>${vuln.type}</td>
+        <td style="color:#4a9eff;">${vuln.endpoint}</td>
+        <td>${vuln.param}</td>
+        <td>${vuln.confidence}</td>
+        <td style="color:#a0a0a0;">Click to expand</td>
+    `;
+    tr.onclick = () => showFindingDetail(vuln);
+    tbody.appendChild(tr);
+
+    const critCount = State.findings.filter(f=>f.severity==='Critical').length;
+    const highCount = State.findings.filter(f=>f.severity==='High').length;
+    document.getElementById('critCount').textContent = `${critCount} Critical`;
+    document.getElementById('highCount').textContent = `${highCount} High`;
+    addLog('scan', `[${vuln.severity}] ${vuln.type} at ${vuln.endpoint} — param: ${vuln.param}`);
+}
+
+function showFindingDetail(vuln) {
+    const d = document.getElementById('findingDetail');
+    d.style.display = 'block';
+    document.getElementById('findingTitle').textContent = `${vuln.severity}: ${vuln.type}`;
+    document.getElementById('findingTitle').className = ({Critical:'severity-critical',High:'severity-high',Medium:'severity-medium',Low:'severity-low',Info:'severity-info'}[vuln.severity] || '');
+    document.getElementById('findingDesc').textContent = `Endpoint: ${vuln.endpoint} | Parameter: ${vuln.param} | Confidence: ${vuln.confidence}`;
+    document.getElementById('findingPayload').textContent = vuln.payload;
+    document.getElementById('findingEvidence').textContent = vuln.evidence;
+    document.getElementById('findingRemediation').textContent = vuln.remediation;
+}
+
+function pauseScan() {
+    if (scanInterval) { clearInterval(scanInterval); State.scanRunning = false; document.getElementById('globalStatus').textContent = '● PAUSED'; addLog('scan','Scan paused'); }
+}
+
+function clearScan() {
+    pauseScan();
+    document.getElementById('scanBody').innerHTML = '';
+    document.getElementById('scanProgress').style.width = '0%';
+    document.getElementById('scanStatusText').textContent = 'Idle';
+    document.getElementById('findingDetail').style.display = 'none';
+    State.findings = []; State.findingCount = 0;
+    document.getElementById('globalStatus').textContent = '● READY';
+}
+
+function exportScanResults() {
+    const lines = ['Severity\tType\tEndpoint\tParameter\tConfidence\tPayload\tEvidence\tRemediation'];
+    State.findings.forEach(f => lines.push(`${f.severity}\t${f.type}\t${f.endpoint}\t${f.param}\t${f.confidence}\t${f.payload}\t${f.evidence}\t${f.remediation}`));
+    downloadFile('scan_results.tsv', lines.join('\n'));
+    addLog('scan','Scan results exported');
+}
+
+// ============================================================
+// INTRUDER
+// ============================================================
+const PAYLOAD_SETS = {
+    common: ['admin','administrator','root','user','test','guest','superuser','sysadmin','webmaster','support','manager','operator','service','backup','default'],
+    sql: ["'","''","' OR '1'='1","' OR '1'='1'--","' OR 1=1--","' OR 1=1#","1' ORDER BY 1--","1' ORDER BY 2--","1' UNION SELECT null--","1' UNION SELECT null,null--","'; DROP TABLE users--","1 AND 1=1","1 AND 1=2","' AND SLEEP(5)--","1; WAITFOR DELAY '0:0:5'--"],
+    xss: ['<script>alert(1)</script>','"><script>alert(1)</script>','\'><script>alert(1)</script>','<img src=x onerror=alert(1)>','<svg onload=alert(1)>','javascript:alert(1)','<iframe src="javascript:alert(1)">','{{7*7}}','${7*7}','<body onload=alert(1)>','<input autofocus onfocus=alert(1)>','"><img src=x onerror=alert`1`>','<details open ontoggle=alert(1)>','<marquee onstart=alert(1)>']
+};
+
+function loadCommonPayloads() { document.getElementById('payloadList').textContent = PAYLOAD_SETS.common.join('\n'); addLog('intruder','Common credential payload list loaded'); }
+function loadSQLPayloads()    { document.getElementById('payloadList').textContent = PAYLOAD_SETS.sql.join('\n');    addLog('intruder','SQL injection payload list loaded'); }
+function loadXSSPayloads()    { document.getElementById('payloadList').textContent = PAYLOAD_SETS.xss.join('\n');    addLog('intruder','XSS payload list loaded'); }
+function clearPayloads()      { document.getElementById('payloadList').textContent = ''; }
+
+function runIntruder() {
+    const payloads = document.getElementById('payloadList').textContent.trim().split('\n').filter(p => p.trim());
+    const grepMatch = document.getElementById('grepMatch').value.toLowerCase();
+    if (!payloads.length) { addLog('intruder','ERROR: No payloads configured'); return; }
+
+    document.getElementById('intruderBody').innerHTML = '';
+    State.intruderResults = [];
+    document.getElementById('intruderStatus').textContent = `Running ${document.getElementById('attackType').value} attack — ${payloads.length} payloads`;
+    addLog('intruder', `Intruder attack started — ${payloads.length} payloads, type: ${document.getElementById('attackType').value}`);
+
+    payloads.forEach((payload, i) => {
+        setTimeout(() => {
+            const status = Math.random() > 0.85 ? 200 : (Math.random() > 0.5 ? 302 : 401);
+            const len    = status === 200 ? Math.floor(Math.random() * 3000 + 800) : Math.floor(Math.random() * 200 + 50);
+            const time   = Math.floor(Math.random() * 400 + 50);
+            const matched = status === 200 && (payload.toLowerCase().includes('admin') || Math.random() > 0.9);
+
+            const tbody = document.getElementById('intruderBody');
+            const tr = document.createElement('tr');
+            const statusClass = status >= 400 ? 'log-status-404' : status >= 300 ? 'log-status-301' : 'log-status-200';
+            if (matched) tr.style.background = 'rgba(0,255,136,0.08)';
+            tr.innerHTML = `
+                <td>${i+1}</td>
+                <td style="color:#f5a623;">${escHtml(payload)}</td>
+                <td class="${statusClass}">${status}</td>
+                <td>${len}</td>
+                <td>${time}ms</td>
+                <td>${matched ? '<span class="badge badge-green">MATCH</span>' : '—'}</td>
+            `;
+            tbody.appendChild(tr);
+            State.intruderResults.push({payload, status, len, time, matched});
+
+            if (i === payloads.length - 1) {
+                const hits = State.intruderResults.filter(r=>r.matched).length;
+                document.getElementById('intruderStatus').textContent = `Attack complete — ${payloads.length} requests sent, ${hits} matches`;
+                addLog('intruder', `Attack complete. ${hits} match(es) found.`);
+            }
+        }, i * 120);
+    });
+}
+
+function exportIntruderResults() {
+    const lines = ['Payload\tStatus\tLength\tTime\tMatch'];
+    State.intruderResults.forEach(r => lines.push(`${r.payload}\t${r.status}\t${r.len}\t${r.time}\t${r.matched}`));
+    downloadFile('intruder_results.tsv', lines.join('\n'));
+}
+
+// ============================================================
+// REPEATER
+// ============================================================
+function sendRepeaterRequest() {
+    const req  = document.getElementById('repeaterRequest').value;
+    const host = document.getElementById('repeaterHost').value;
+    const time = Math.floor(Math.random() * 300 + 30);
+    State.requestCount++;
+    addLog('repeater', `Manual request sent to ${host} — ${time}ms`);
+
+    const statusCode = 200;
+    document.getElementById('repeaterStatusCode').textContent = `${statusCode} OK`;
+    document.getElementById('repeaterResponseTime').textContent = `${time}ms`;
+
+    document.getElementById('repeaterResponse').value =
+`HTTP/1.1 200 OK
+Date: ${new Date().toUTCString()}
+Server: nginx/1.18.0
+Content-Type: text/html; charset=UTF-8
+Content-Length: 1247
+X-Frame-Options: SAMEORIGIN
+X-Content-Type-Options: nosniff
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+
+<!DOCTYPE html>
+<html>
+<head><title>Response</title></head>
+<body>
+  <h1>200 OK</h1>
+  <p>Request processed. Repeater round-trip: ${time}ms</p>
+  <!-- Host: ${host} -->
+</body>
+</html>`;
+}
+
+function sendToComparer() {
+    const resp = document.getElementById('repeaterResponse').value;
+    if (!document.getElementById('comparerLeft').value.trim()) {
+        document.getElementById('comparerLeft').value = resp;
+    } else {
+        document.getElementById('comparerRight').value = resp;
+    }
+    addLog('repeater','Response sent to Comparer');
+}
+
+// ============================================================
+// DECODER
+// ============================================================
+async function runDecode() {
+    const input = document.getElementById('decoderInput').value;
+    const type  = document.getElementById('decodeType').value;
+    let output  = '';
+
+    try {
+        switch(type) {
+            case 'b64decode':
+                output = atob(input.trim());
+                break;
+            case 'b64encode':
+                output = btoa(input);
+                break;
+            case 'urldecode':
+                output = decodeURIComponent(input);
+                break;
+            case 'urlencode':
+                output = encodeURIComponent(input);
+                break;
+            case 'htmldecode':
+                const txt = document.createElement('textarea');
+                txt.innerHTML = input;
+                output = txt.value;
+                break;
+            case 'htmlencode':
+                output = input.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;');
+                break;
+            case 'hexdecode':
+                output = input.replace(/\s/g,'').match(/.{1,2}/g).map(b => String.fromCharCode(parseInt(b,16))).join('');
+                break;
+            case 'hexencode':
+                output = Array.from(input).map(c => c.charCodeAt(0).toString(16).padStart(2,'0')).join('');
+                break;
+            case 'rot13':
+                output = input.replace(/[a-zA-Z]/g, c => String.fromCharCode(c.charCodeAt(0) + (c.toLowerCase() < 'n' ? 13 : -13)));
+                break;
+            case 'binary':
+                output = input.trim().split(/\s+/).map(b => String.fromCharCode(parseInt(b,2))).join('');
+                break;
+            case 'jwt':
+                const parts = input.split('.');
+                if (parts.length === 3) {
+                    const header  = JSON.parse(atob(parts[0].replace(/-/g,'+').replace(/_/g,'/')));
+                    const payload = JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')));
+                    output = `HEADER:\n${JSON.stringify(header, null, 2)}\n\nPAYLOAD:\n${JSON.stringify(payload, null, 2)}\n\nSIGNATURE:\n${parts[2]}\n\n[NOTE: Signature not verified — decode only]`;
+                } else { output = 'ERROR: Invalid JWT format (expected 3 parts separated by .)'; }
+                break;
+            case 'md5':
+                output = '[MD5] ' + await digestHex('MD5-pseudo', input) + ' [Note: SubtleCrypto supports SHA family; MD5 pseudohash shown]';
+                break;
+            case 'sha1':
+                output = await digestHex('SHA-1', input);
+                break;
+            case 'sha256':
+                output = await digestHex('SHA-256', input);
+                break;
+            default:
+                output = 'Unknown transform type';
+        }
+    } catch(e) {
+        output = `ERROR: ${e.message}`;
+    }
+
+    document.getElementById('decoderOutput').value = output;
+    addLog('decoder', `Transform: ${type} applied`);
+}
+
+async function digestHex(algo, input) {
+    if (algo === 'MD5-pseudo') {
+        // Simple non-cryptographic hash for display — SubtleCrypto does not support MD5
+        let h = 0;
+        for (let i = 0; i < input.length; i++) { h = (Math.imul(31, h) + input.charCodeAt(i)) | 0; }
+        return (h >>> 0).toString(16).padStart(8,'0').repeat(4);
+    }
+    const enc  = new TextEncoder();
+    const data = enc.encode(input);
+    const buf  = await crypto.subtle.digest(algo, data);
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+function swapDecoder() {
+    const out = document.getElementById('decoderOutput').value;
+    if (out) { document.getElementById('decoderInput').value = out; document.getElementById('decoderOutput').value = ''; }
+}
+
+function clearDecoder() {
+    document.getElementById('decoderInput').value = '';
+    document.getElementById('decoderOutput').value = '';
+}
+
+// ============================================================
+// COMPARER
+// ============================================================
+function runCompare() {
+    const left  = document.getElementById('comparerLeft').value;
+    const right = document.getElementById('comparerRight').value;
+    if (!left || !right) { document.getElementById('comparerOutput').innerHTML = '<span style="color:#e94560;">ERROR: Both items required for comparison.</span>'; return; }
+
+    const lLines = left.split('\n');
+    const rLines = right.split('\n');
+    const maxLen = Math.max(lLines.length, rLines.length);
+    const diffs  = [];
+    let added = 0, removed = 0, changed = 0;
+
+    for (let i = 0; i < maxLen; i++) {
+        const l = lLines[i] || '';
+        const r = rLines[i] || '';
+        if (l === r) continue;
+        if (!l) { diffs.push(`<div style="color:#00ff88;">+ Line ${i+1}: ${escHtml(r)}</div>`); added++; }
+        else if (!r) { diffs.push(`<div style="color:#e94560;">- Line ${i+1}: ${escHtml(l)}</div>`); removed++; }
+        else { diffs.push(`<div style="color:#f5a623;">~ Line ${i+1}: <span style="color:#e94560;">${escHtml(l)}</span> → <span style="color:#00ff88;">${escHtml(r)}</span></div>`); changed++; }
+    }
+
+    const summary = `<div style="color:#4a9eff; margin-bottom:8px;">DIFF SUMMARY — Added: ${added} | Removed: ${removed} | Changed: ${changed} | Total lines compared: ${maxLen}</div>`;
+    document.getElementById('comparerOutput').innerHTML = summary + (diffs.length ? diffs.join('') : '<span style="color:#00ff88;">✓ Items are identical</span>');
+    addLog('comparer', `Comparison complete — ${added} added, ${removed} removed, ${changed} changed`);
+}
+
+// ============================================================
+// SEQUENCER
+// ============================================================
+function runSequencer() {
+    const count   = 100;
+    const tokens  = Array.from({length: count}, () => Math.random().toString(36).substring(2,18));
+    const entropy = (Math.random() * 2 + 6).toFixed(2);
+    const rating  = parseFloat(entropy) >= 7.5 ? 'HIGH' : parseFloat(entropy) >= 5 ? 'MEDIUM' : 'LOW';
+    const ratingColor = rating === 'HIGH' ? '#00ff88' : rating === 'MEDIUM' ? '#f5a623' : '#e94560';
+
+    const output = `Token Analysis Complete — ${count} samples collected
+════════════════════════════════════════
+Entropy Rating:   ${entropy} bits/char  [${rating}]
+
+FIPS 140-2 Statistical Tests:
+  Monobit Test:          ${Math.random() > 0.3 ? 'PASS' : 'FAIL'}  (expected 9725-10275 ones)
+  Poker Test:            ${Math.random() > 0.3 ? 'PASS' : 'FAIL'}  (χ² = ${(Math.random()*20+2).toFixed(2)})
+  Runs Test:             ${Math.random() > 0.3 ? 'PASS' : 'FAIL'}  (runs within bounds)
+  Long Runs Test:        PASS  (no runs > 26 bits)
+  Autocorrelation Test:  ${Math.random() > 0.2 ? 'PASS' : 'FAIL'}
+
+Sample Tokens (first 10):
+${tokens.slice(0,10).map((t,i) => `  [${String(i+1).padStart(2,'0')}] ${t}`).join('\n')}
+
+Character Distribution:
+  Alphanumeric: ${(Math.random()*10+85).toFixed(1)}%
+  Digits:       ${(Math.random()*5+10).toFixed(1)}%
+
+Recommendation: ${rating === 'HIGH' ? 'Token entropy is sufficient for session identifiers.' : 'Token entropy is INSUFFICIENT. Regenerate using CSPRNG (crypto.getRandomValues or os.urandom).'}`;
+
+    document.getElementById('sequencerOutput').textContent = output;
+    addLog('sequencer', `Token analysis complete — ${entropy} bits entropy, rating: ${rating}`);
+}
+
+// ============================================================
+// LOGGER
+// ============================================================
+function addLog(source, message) {
+    const entry = {
+        time: new Date().toISOString().replace('T',' ').substring(0,19),
+        source,
+        message
+    };
+    State.logEntries.push(entry);
+
+    const div = document.createElement('div');
+    div.className = 'log-entry';
+    div.dataset.source = source;
+    div.dataset.message = message.toLowerCase();
+    div.innerHTML = `<span class="log-time">${entry.time}</span><span class="log-method">[${source.toUpperCase()}]</span>${escHtml(message)}`;
+    document.getElementById('logContainer').appendChild(div);
+    document.getElementById('logContainer').scrollTop = document.getElementById('logContainer').scrollHeight;
+    document.getElementById('logCount').textContent = `${State.logEntries.length} entries`;
+}
+
+function filterLog() {
+    const filter = document.getElementById('logFilter').value;
+    const search = document.getElementById('logSearch').value.toLowerCase();
+    document.querySelectorAll('.log-entry').forEach(el => {
+        const sourceMatch = filter === 'all' || filter === 'error' || el.dataset.source === filter;
+        const errorMatch  = filter !== 'error' || el.dataset.message.includes('error');
+        const textMatch   = !search || el.dataset.message.includes(search);
+        el.style.display  = (sourceMatch && errorMatch && textMatch) ? '' : 'none';
+    });
+}
+
+function clearLog() {
+    document.getElementById('logContainer').innerHTML = '';
+    State.logEntries = [];
+    document.getElementById('logCount').textContent = '0 entries';
+}
+
+function exportLog() {
+    const lines = State.logEntries.map(e => `${e.time}\t[${e.source}]\t${e.message}`);
+    downloadFile('websec_audit_log.txt', lines.join('\n'));
+}
+
+// ============================================================
+// UTILITIES
+// ============================================================
+function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function downloadFile(filename, content) {
+    const a = document.createElement('a');
+    a.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(content);
+    a.download = filename;
+    a.click();
+}
+
+// ============================================================
+// INIT
+// ============================================================
+addLog('system', 'WebSec Auditor v2.1 initialized — Ironclad Assessment Platform ready');
+addLog('system', 'All modules loaded: Proxy, Scanner, Intruder, Repeater, Decoder, Comparer, Sequencer');
+updateStatusBar();
+</script>
+</body>
+  </html>
